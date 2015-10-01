@@ -6,18 +6,68 @@
 
   <script type='text/javascript'>//<![CDATA[ 
 window.onload=function(){
-    var rules_newspaper = {};
+    var rules_newspaper = {
+        'chars':{ // individual characters, LtR, TtB
+            w:8, h:8, gp:[[0,0],[8,0],[0,8]], //glue points, [[x,y],...]
+            gpp:[[0,1],[0,2]], // glue point pairs, [[new,old],...]
+            parent:'column'
+        },
+        'column':{ // columns, left-to-right only
+            w: 100, h:400, gp:[[0,0], [120,0]], // note gap between columns. Glue points can be inside, outside or on edges
+            gpp:[[0,1]]
+        }
+    };
 
     var lorem = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean at sem pulvinar, dictum eros vel, pulvinar diam. Aliquam leo ligula, vulputate et urna ac, lobortis volutpat sem. Nunc ante lectus, mollis a sapien tincidunt, consectetur accumsan sapien. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; Mauris aliquet ullamcorper rhoncus. Pellentesque quis lacus id enim vulputate pharetra eu ornare nibh. Donec molestie pharetra turpis, eu lobortis ante ultrices a. Curabitur vitae ipsum maximus enim ultrices elementum. Aenean feugiat non leo id viverra. Praesent pharetra felis metus, ut lacinia nibh varius eget. Pellentesque purus elit, placerat non interdum quis, ullamcorper sed risus. Vivamus ut mauris hendrerit, tincidunt erat in, gravida massa. Fusce eget tincidunt mauris. Praesent ut dui sapien. Nulla vel risus nisl. Sed convallis efficitur mi, eu molestie libero dignissim eget.".split('');
 
+    function Stack (rules, template) {
+        this.dx = 0;
+        this.dy = 0;
+        this.content = null;
+        this.next = null; // linked list
+
+        this.width = template.w;
+        this.height = template.h;
+        this.glue = template.gp;
+        this.gluePairs = template.gpp;
+        if (template.parent) { this.parent = new Stack(rules, rules[template.parent]); }
+
+        this.join = function join(content){ // guts of the algorithm
+            if (this.content !== null) {
+                this.content = content;
+                return;
+            }
+            if (this.next !== null) {
+                return this.next.join(content);
+            }
+            // try adding boxes
+            for (var j = 0; j < gluePairs.length; j++){
+                var newRight = ...
+            }
+        };
+    }
+
     function layout(rules, data){
-    
+        var roots = Object.keys(data);
+        var root = roots[0]; // to start, just consider first
+
+        var stack = new Stack(rules, rules[root]);
+        for (var i = 0; i < data[root].length; i++){
+            var d = data[root].shift();
+            if (!stack.join(d)) {
+                data[root].unshift(d);
+                break;
+            }
+        }
+
+        console.log(JSON.stringify(stack, null, 2));
+
         return {boxes:[], overflow:[]};
     }
 
     function draw() {
 
-        var theLayout = layout(rules_newspaper, {'root':lorem});
+        var theLayout = layout(rules_newspaper, {'chars':lorem});
 
         var canvas = document.getElementById("canvas");
         var ctx = canvas.getContext("2d");

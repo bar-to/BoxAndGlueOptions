@@ -6,8 +6,18 @@ Each container can have a parent container (recursively up).
 Each container also has a set of glue points, and a list of glue-point-pairs (gpp).
 
 The data is then used to create new containers. These are attached to the previous by the first gpp.
-If that exceeds the bounds of the parent, the next pair is used instead. So on, until the bounds are not exceeded
-or we run out of gpps. If we fit the new container, the next one resets to first gpp.
+If that exceeds the bounds of the parent, the next pair is used instead. 
+The next pair is attached to the last container that was added with that gp index, or the first item. So like
+```
+0000000,
+1000000,
+1000000...
+```
+
+(note: flag or 'attach via' property to change this?)
+
+So on, until the bounds are not exceeded or we run out of gpps.
+If we fit the new container, the next one resets to first gpp.
 
 So,
 ```
@@ -28,3 +38,10 @@ The 'page' is the ultimate outer container, which is always terminal.
 The layout function returns an array of the innermost container boxes and the overflow data (which might be empty)
 
 For multiple sets of data, there needs to be some way of deciding where in the remaining page the next container should start.
+
+Future
+--------
+
+* Multiple data sets.
+* Interleaving sets
+* Flexible block sizes (min size, max size, element size)
