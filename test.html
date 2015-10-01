@@ -26,24 +26,46 @@ window.onload=function(){
         this.content = null;
         this.next = null; // linked list
 
+        this.tmpl = template;
         this.width = template.w;
         this.height = template.h;
         this.glue = template.gp;
         this.gluePairs = template.gpp;
-        if (template.parent) { this.parent = new Stack(rules, rules[template.parent]); }
+        if (template.parent && rules) { this.parent = new Stack(rules, rules[template.parent]); }
 
         this.join = function join(content){ // guts of the algorithm
-            if (this.content !== null) {
+            if (this.content === null) {
                 this.content = content;
-                return;
+                return true;
             }
             if (this.next !== null) {
+                // todo: avoid recursive list crap
                 return this.next.join(content);
             }
             // try adding boxes
-            for (var j = 0; j < gluePairs.length; j++){
-                var newRight = ...
+            for (var j = 0; j < this.gluePairs.length; j++){
+                // todo: start from the last box glued on index 'j'
+                var gNew = this.glue[this.gluePairs[j][0]];
+                var gOld = this.glue[this.gluePairs[j][1]];
+                // this is crap -- requires going right and down. Need to see what side we're joining.
+                var newRight = (this.dx + gOld[0]) - (gNew[0]);
+                var newBottom = (this.dy + gOld[1]) - (gNew[1]);
+
+                // if it still fits, add
+                if ((!this.parent)||(
+                    (newRight <= (this.parent.dx + this.parent.width)) &&
+                    (newBottom <= (this.parent.dy + this.parent.height)))
+                ) {
+                    var n = new Stack(null, this.tmpl);
+                    n.dx=newRight;
+                    n.dy=newBottom;
+                    n.content=content;
+                    this.next = n;
+                    return true;
+                }
             }
+            console.log("end of container, go up");
+            return false; // TODO: walk up the stack before giving up.
         };
     }
 
@@ -60,7 +82,7 @@ window.onload=function(){
             }
         }
 
-        console.log(JSON.stringify(stack, null, 2));
+        console.log(data[root].join(''));
 
         return {boxes:[], overflow:[]};
     }
