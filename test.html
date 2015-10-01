@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <title>demo</title>
+
+  <script type='text/javascript'>//<![CDATA[ 
+window.onload=function(){
+    var rules_newspaper = {};
+
+    var lorem = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean at sem pulvinar, dictum eros vel, pulvinar diam. Aliquam leo ligula, vulputate et urna ac, lobortis volutpat sem. Nunc ante lectus, mollis a sapien tincidunt, consectetur accumsan sapien. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; Mauris aliquet ullamcorper rhoncus. Pellentesque quis lacus id enim vulputate pharetra eu ornare nibh. Donec molestie pharetra turpis, eu lobortis ante ultrices a. Curabitur vitae ipsum maximus enim ultrices elementum. Aenean feugiat non leo id viverra. Praesent pharetra felis metus, ut lacinia nibh varius eget. Pellentesque purus elit, placerat non interdum quis, ullamcorper sed risus. Vivamus ut mauris hendrerit, tincidunt erat in, gravida massa. Fusce eget tincidunt mauris. Praesent ut dui sapien. Nulla vel risus nisl. Sed convallis efficitur mi, eu molestie libero dignissim eget.".split('');
+
+    function layout(rules, data){
+    
+        return {boxes:[], overflow:[]};
+    }
+
+    function draw() {
+
+        var theLayout = layout(rules_newspaper, {'root':lorem});
+
+        var canvas = document.getElementById("canvas");
+        var ctx = canvas.getContext("2d");
+
+        var x = 50;
+        if (x > 300) {
+            x = 50;
+        }
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.beginPath();
+        ctx.arc(x, 100, 30, 0, Math.PI * 2, false);
+        ctx.strokeStyle = "gold";
+        ctx.fillStyle = "yellow";
+        ctx.lineWidth = 5;
+        ctx.stroke();
+        ctx.fill();
+    }
+
+    draw();
+
+}//]]> </script>
+  </head>
+<body>
+  <canvas id="canvas" height="400" width="400"></canvas>
+<pre id="data"></pre>
+</body>
+</html>
