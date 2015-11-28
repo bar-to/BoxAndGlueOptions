@@ -6,90 +6,137 @@
 
   <script type='text/javascript'>//<![CDATA[ 
 window.onload=function(){
+    // The original idea was to glue ONE WAY and then repeat the outer container
+    // if the next box went out of bounds. The POSITIONING of boxes was meant to be
+    // in a priority list, to do things like scroll down the page, pin to top then scroll out.
+    // This would mean {char~>row~>column}
+    // Also, it would be good to alternate, so one row can have a 'next' of a different type:
+    // a block~A is duplicated with a block~B, circling back to A. This allows for left~right~left
+    // picture with text.
+
     var rules_newspaper = {
-        'chars':{ // individual characters, LtR, TtB
-            w:8, h:8, gp:[[0,0],[8,0],[0,8]], //glue points, [[x,y],...]
-            gpp:[[0,1],[0,2]], // glue point pairs, [[new,old],...]
+        'ROOT':'char',
+        'char':{ // individual characters, Left to Right
+            w:8, h:8, gp:[8,0], //glue points, [old-x,old-y] where 0,0 on the new one joins.
+            parent:'row'
+        },
+        'row':{ // rows, top to bottom
+            w:100, h:8, gp:[0,8],
             parent:'column'
         },
         'column':{ // columns, left-to-right only
-            w: 100, h:400, gp:[[0,0], [120,0]], // note gap between columns. Glue points can be inside, outside or on edges
-            gpp:[[0,1]]
+            w: 100, h:400, gp:[120,0] // note gap between columns. Glue points can be inside, outside or on edges
         }
     };
 
+    // this is what we are trying to end up with: (probably remove the walkList and rules on output)
+    var sampleState = {
+        'walkList':['column','row','char'],
+        'rules': { /* ... rules copied in ... */ },
+        'column': [
+            {
+                'x':0, 'y':0,
+                'row' : [
+                    {
+                        'x':0, 'y':0,
+                        'char':[
+                            {'x':0, 'y':0, 'data':'L'},
+                            {'x':8, 'y':0, 'data':'o'},
+                            {'x':16,'y':0, 'data':'r'} // ...
+                        ]
+                    }
+                ]
+            },
+            { 'row' : [] } // ...
+        ]
+    };
+
+    // Data to be added
     var lorem = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean at sem pulvinar, dictum eros vel, pulvinar diam. Aliquam leo ligula, vulputate et urna ac, lobortis volutpat sem. Nunc ante lectus, mollis a sapien tincidunt, consectetur accumsan sapien. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; Mauris aliquet ullamcorper rhoncus. Pellentesque quis lacus id enim vulputate pharetra eu ornare nibh. Donec molestie pharetra turpis, eu lobortis ante ultrices a. Curabitur vitae ipsum maximus enim ultrices elementum. Aenean feugiat non leo id viverra. Praesent pharetra felis metus, ut lacinia nibh varius eget. Pellentesque purus elit, placerat non interdum quis, ullamcorper sed risus. Vivamus ut mauris hendrerit, tincidunt erat in, gravida massa. Fusce eget tincidunt mauris. Praesent ut dui sapien. Nulla vel risus nisl. Sed convallis efficitur mi, eu molestie libero dignissim eget.".split('');
 
-    function Stack (rules, template) {
-        this.dx = 0;
-        this.dy = 0;
-        this.content = null;
-        this.next = null; // linked list
-
-        this.tmpl = template;
-        this.width = template.w;
-        this.height = template.h;
-        this.glue = template.gp;
-        this.gluePairs = template.gpp;
-        if (template.parent && rules) { this.parent = new Stack(rules, rules[template.parent]); }
-
-        this.join = function join(content){ // guts of the algorithm
-            if (this.content === null) {
-                this.content = content;
-                return true;
-            }
-            if (this.next !== null) {
-                // todo: avoid recursive list crap
-                return this.next.join(content);
-            }
-            // try adding boxes
-            for (var j = 0; j < this.gluePairs.length; j++){
-                // todo: start from the last box glued on index 'j'
-                var gNew = this.glue[this.gluePairs[j][0]];
-                var gOld = this.glue[this.gluePairs[j][1]];
-                // this is crap -- requires going right and down. Need to see what side we're joining.
-                var newRight = (this.dx + gOld[0]) - (gNew[0]);
-                var newBottom = (this.dy + gOld[1]) - (gNew[1]);
-
-                // if it still fits, add
-                if ((!this.parent)||(
-                    (newRight <= (this.parent.dx + this.parent.width)) &&
-                    (newBottom <= (this.parent.dy + this.parent.height)))
-                ) {
-                    var n = new Stack(null, this.tmpl);
-                    n.dx=newRight;
-                    n.dy=newBottom;
-                    n.content=content;
-                    this.next = n;
-                    return true;
-                }
-            }
-            console.log("end of container, go up");
-            return false; // TODO: walk up the stack before giving up.
-        };
+    // return a skeleton output
+    // First, walk up the tree from the root, creating the initial structure, and a walk list (in this case ['column','row','char'])
+    function InitialiseOutput(rules) {
+        var outp = {'rules':rules, 'walkList':[]};
+        var r = rules.ROOT;
+        var i = outp;
+        // walk list
+        while (r) { outp.walkList.unshift(r); r = rules[r].parent; }
+        for (r of outp.walkList) { i[r] = [{x:0,y:0}]; i = i[r][0]; }
+        return outp;
     }
 
-    function layout(rules, data){
-        var roots = Object.keys(data);
-        var root = roots[0]; // to start, just consider first
+    // For each data, go to the last item in each item of the walk list. If we can add a data item ('char') then add it.
+    // If not, walk back up the walk list (next visiting 'row') and try to add that. Keep going back until one can be added.
+    // Then go back down and add the data.
+    // If nothing can be added, return `false`. Otherwise return `true`
+    function AddData(output, data) {
+        if (!data) return false;
 
-        var stack = new Stack(rules, rules[root]);
-        for (var i = 0; i < data[root].length; i++){
-            var d = data[root].shift();
-            if (!stack.join(d)) {
-                data[root].unshift(d);
+        var termChain = [];
+        var x = output;
+        for (var r of output.walkList) {
+            var group = x[r];
+            var x = lastOf(group);
+            termChain.push({rule:r, container:group, item:x});
+        };
+        var rules = output.rules;
+
+        var n = termChain.length - 1;
+
+        var placed = false;
+        while (!placed) {
+            // Don't like this pushing and popping. keep an index instead
+            var last = termChain[n];
+            var parent = termChain[n-1];
+            var dataRule = rules[last.rule]; // rule for last and new candidate data
+            
+            if (last.item.data === undefined) {
+                last.container.pop(); // clean up placeholder
+                last.item.x -= dataRule.gp[0];
+                last.item.y -= dataRule.gp[1];
+            }
+            var cand = {'data':data, 'x':(last.item.x + dataRule.gp[0]), 'y':(last.item.y + dataRule.gp[1])};
+            
+            if (parent) { // we have a container, so we have to check bounds
+                var pRule = rules[parent.rule]; // rule for outer container
+                var mx = parent.item.x + pRule.w;
+                var my = parent.item.y + pRule.h;
+                var dx = cand.x + dataRule.w;
+                var dy = cand.y + dataRule.h;
+                if (dx > mx || dy > my) return false; // TODO:  actually, make a new container
+            }
+
+            last.container.push(cand);
+            
+            
+            placed = true;
+        }
+
+        return true;
+    }
+
+    function lastOf(arr){return arr[arr.length-1];}
+
+    function layout(rules, data){
+        var output = InitialiseOutput(rules);
+        for (var i = 0; i < data.length; i++){
+            var d = data.shift();
+            if (!AddData(output, d)) {
+                data.unshift(d);
                 break;
             }
         }
 
-        console.log(data[root].join(''));
-
-        return {boxes:[], overflow:[]};
+        delete output.rules;
+        delete output.walkList;
+        return {layout: output, overflow: []/*data*/}; // return layout and any data that didn't fit
     }
 
     function draw() {
 
-        var theLayout = layout(rules_newspaper, {'chars':lorem});
+        var theLayout = layout(rules_newspaper, lorem);
+        console.log(JSON.stringify(theLayout, null, 2));
 
         var canvas = document.getElementById("canvas");
         var ctx = canvas.getContext("2d");
